@@ -120,11 +120,15 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
 
 <div class="api-bar">
   <div class="api-status"><div class="api-dot" id="dot-gemini"></div><label>GEMINI</label></div>
-  <input class="api-input" type="password" id="key-gemini" placeholder="AIza... (스크립트 생성)" />
-  <div class="api-status"><div class="api-dot" id="dot-openai"></div><label>OPENAI</label></div>
-  <input class="api-input" type="password" id="key-openai" placeholder="sk-... (이미지 생성)" style="width:180px;" />
+  <input class="api-input" type="password" id="key-gemini" placeholder="AIza... (1순위)" />
+  <div class="api-status"><div class="api-dot" id="dot-claude"></div><label>CLAUDE</label></div>
+  <input class="api-input" type="password" id="key-claude" placeholder="sk-ant-... (2순위)" style="width:160px;" />
+  <div class="api-status"><div class="api-dot" id="dot-gpt"></div><label>GPT</label></div>
+  <input class="api-input" type="password" id="key-gpt" placeholder="sk-... (3순위)" style="width:160px;" />
+  <div class="api-status"><div class="api-dot" id="dot-openai"></div><label>OPENAI 이미지</label></div>
+  <input class="api-input" type="password" id="key-openai" placeholder="sk-... (이미지)" style="width:160px;" />
   <div class="api-status"><div class="api-dot" id="dot-eleven"></div><label>ELEVENLABS</label></div>
-  <input class="api-input" type="password" id="key-eleven" placeholder="elevenlabs key (음성 생성)" />
+  <input class="api-input" type="password" id="key-eleven" placeholder="elevenlabs key" style="width:160px;" />
   <button class="btn-ghost" onclick="saveKeys()" style="font-size:11px;">저장</button>
 </div>
 
@@ -365,13 +369,12 @@ var DEFAULT_STYLES = {
 var SHEETS_URL = "https://script.google.com/macros/s/AKfycbxtK-LV3l8SzCG7IjJ-qaRrYJrjCy9cDEwTLWvSZIBg6kIqp7wnUL7QIdA0JBRgFnDMcg/exec";
 
 window.onload = function() {
-  var gk = localStorage.getItem("sm_gemini");
-  var ok = localStorage.getItem("sm_openai");
-  var ek = localStorage.getItem("sm_eleven");
+  var keys = { gemini: "key-gemini", claude: "key-claude", gpt: "key-gpt", openai: "key-openai", eleven: "key-eleven" };
+  Object.keys(keys).forEach(function(k) {
+    var val = localStorage.getItem("sm_" + k);
+    if (val) { document.getElementById(keys[k]).value = val; setDot("dot-" + k, true); }
+  });
   var su = localStorage.getItem("sm_sheets_url") || SHEETS_URL;
-  if (gk) { document.getElementById("key-gemini").value = gk; setDot("dot-gemini", true); }
-  if (ok) { document.getElementById("key-openai").value = ok; setDot("dot-openai", true); }
-  if (ek) { document.getElementById("key-eleven").value = ek; setDot("dot-eleven", true); }
   if (su) { document.getElementById("sheets-url").value = su; setDot("dot-sheets", true); }
   loadAllStyles();
   renderVault();
@@ -380,14 +383,13 @@ window.onload = function() {
 };
 
 function saveKeys() {
-  var gk = document.getElementById("key-gemini").value.trim();
-  var ok = document.getElementById("key-openai").value.trim();
-  var ek = document.getElementById("key-eleven").value.trim();
-  var su = document.getElementById("sheets-url").value.trim();
-  if (gk) { localStorage.setItem("sm_gemini", gk); setDot("dot-gemini", true); } else { localStorage.removeItem("sm_gemini"); setDot("dot-gemini", false); }
-  if (ok) { localStorage.setItem("sm_openai", ok); setDot("dot-openai", true); } else { localStorage.removeItem("sm_openai"); setDot("dot-openai", false); }
-  if (ek) { localStorage.setItem("sm_eleven", ek); setDot("dot-eleven", true); } else { localStorage.removeItem("sm_eleven"); setDot("dot-eleven", false); }
-  if (su) { localStorage.setItem("sm_sheets_url", su); setDot("dot-sheets", true); } else { localStorage.removeItem("sm_sheets_url"); setDot("dot-sheets", false); }
+  var keys = { gemini: "key-gemini", claude: "key-claude", gpt: "key-gpt", openai: "key-openai", eleven: "key-eleven" };
+  Object.keys(keys).forEach(function(k) {
+    var val = document.getElementById(keys[k]).value.trim();
+    var dotId = "dot-" + k;
+    if (val) { localStorage.setItem("sm_" + k, val); setDot(dotId, true); }
+    else { localStorage.removeItem("sm_" + k); setDot(dotId, false); }
+  });
   showToast("저장 완료 ✓", "success");
 }
 
@@ -497,16 +499,48 @@ function toggleCtAudio() {
 }
 
 async function callGemini(prompt) {
-  var key = getKey("key-gemini");
-  if (!key) throw new Error("Gemini API 키를 입력하고 저장 버튼을 눌러주세요");
-  var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + key, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, maxOutputTokens: 4000 } })
-  });
-  var data = await res.json();
-  if (data.error) throw new Error(data.error.message);
-  return data.candidates[0].content.parts[0].text;
+  // 1순위: Gemini
+  var gKey = localStorage.getItem("sm_gemini");
+  if (gKey) {
+    try {
+      var res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-flash-latest:generateContent?key=" + gKey, {
+        method: "POST", headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ contents: [{ parts: [{ text: prompt }] }], generationConfig: { temperature: 0.9, maxOutputTokens: 4000 } })
+      });
+      var data = await res.json();
+      if (!data.error) return data.candidates[0].content.parts[0].text;
+      console.warn("Gemini 실패, Claude로 전환:", data.error.message);
+    } catch(e) { console.warn("Gemini 실패:", e.message); }
+  }
+  // 2순위: Claude
+  var cKey = localStorage.getItem("sm_claude");
+  if (cKey) {
+    try {
+      var res2 = await fetch("https://api.anthropic.com/v1/messages", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "x-api-key": cKey, "anthropic-version": "2023-06-01", "anthropic-dangerous-direct-browser-access": "true" },
+        body: JSON.stringify({ model: "claude-haiku-4-5-20251001", max_tokens: 4000, messages: [{ role: "user", content: prompt }] })
+      });
+      var data2 = await res2.json();
+      if (!data2.error) { showToast("Claude API로 전환됨", "info"); return data2.content[0].text; }
+      console.warn("Claude 실패, GPT로 전환:", data2.error.message);
+    } catch(e) { console.warn("Claude 실패:", e.message); }
+  }
+  // 3순위: GPT-4o
+  var gptKey = localStorage.getItem("sm_gpt");
+  if (gptKey) {
+    try {
+      var res3 = await fetch("https://api.openai.com/v1/chat/completions", {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": "Bearer " + gptKey },
+        body: JSON.stringify({ model: "gpt-4o-mini", max_tokens: 4000, messages: [{ role: "user", content: prompt }] })
+      });
+      var data3 = await res3.json();
+      if (!data3.error) { showToast("GPT-4o로 전환됨", "info"); return data3.choices[0].message.content; }
+      throw new Error(data3.error.message);
+    } catch(e) { throw new Error("모든 API 실패: " + e.message); }
+  }
+  throw new Error("스크립트 생성 API 키가 없어요. Gemini, Claude, GPT 중 하나를 입력해주세요.");
 }
 
 async function generateImage(prompt, size) {
