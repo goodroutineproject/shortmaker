@@ -192,6 +192,18 @@ audio{width:100%;height:28px;border-radius:4px;}
   <input class="api-input" type="password" id="key-eleven" placeholder="elevenlabs api key... (음성 생성)" oninput="saveKeys()" />
 </div>
 
+<!-- SYNC BAR -->
+<div class="api-bar" style="background:var(--surface2);gap:10px;">
+  <div class="api-status">
+    <div class="api-dot" id="dot-sheets"></div>
+    <label>GOOGLE SHEETS</label>
+  </div>
+  <input class="api-input" id="sheets-url" placeholder="Apps Script 웹앱 URL..." oninput="saveSheetsUrl()" style="width:420px;" />
+  <button class="btn-ghost" onclick="syncToSheets()" id="btn-sync-save" style="font-size:11px;">☁ 저장</button>
+  <button class="btn-ghost" onclick="syncFromSheets()" id="btn-sync-load" style="font-size:11px;">⬇ 불러오기</button>
+  <span id="sync-status" style="font-size:10px;font-family:var(--mono);color:var(--text3);"></span>
+</div>
+
 <!-- ═══ TAB 1: CAN I HUG YOU ═══ -->
 <div class="view active" id="view-hug">
   <div class="two-col">
@@ -495,9 +507,11 @@ window.onload = () => {
   const gk = localStorage.getItem('sm_gemini');
   const ok = localStorage.getItem('sm_openai');
   const ek = localStorage.getItem('sm_eleven');
+  const su = localStorage.getItem('sm_sheets_url') || 'https://script.google.com/macros/s/AKfycbxtK-LV3l8SzCG7IjJ-qaRrYJrjCy9cDEwTLWvSZIBg6kIqp7wnUL7QIdA0JBRgFnDMcg/exec';
   if (gk) { document.getElementById('key-gemini').value = gk; updateDot('dot-gemini', true); }
   if (ok) { document.getElementById('key-openai').value = ok; updateDot('dot-openai', true); }
   if (ek) { document.getElementById('key-eleven').value = ek; updateDot('dot-eleven', true); }
+  if (su) { document.getElementById('sheets-url').value = su; updateDot('dot-sheets', true); }
   loadStyles();
 };
 
@@ -513,7 +527,125 @@ function saveKeys() {
   else { localStorage.removeItem('sm_eleven'); updateDot('dot-eleven', false); }
 }
 
-function updateDot(id, on) {
+function saveSheetsUrl() {
+  const url = document.getElementById('sheets-url').value.trim();
+  if (url) { localStorage.setItem('sm_sheets_url', url); updateDot('dot-sheets', true); }
+  else { localStorage.removeItem('sm_sheets_url'); updateDot('dot-sheets', false); }
+}
+
+function getSheetsUrl() {
+  return document.getElementById('sheets-url').value.trim();
+}
+
+function setSyncStatus(msg, ok=true) {
+  const el = document.getElementById('sync-status');
+  el.textContent = msg;
+  el.style.color = ok ? 'var(--accent)' : 'var(--coral)';
+  setTimeout(() => { el.textContent = ''; }, 4000);
+}
+
+async function sheetsSet(key, value) {
+  const url = getSheetsUrl();
+  if (!url) throw new Error('Google Sheets URL을 입력해주세요');
+  const res = await fetch(url, {
+    method: 'POST',
+    body: JSON.stringify({ key, value })
+  });
+  return res.json();
+}
+
+async function sheetsGet(key) {
+  const url = getSheetsUrl();
+  if (!url) throw new Error('Google Sheets URL을 입력해주세요');
+  const res = await fetch(`${url}?key=${encodeURIComponent(key)}`);
+  const data = await res.json();
+  return data.value;
+}
+
+async function syncToSheets() {
+  const url = getSheetsUrl();
+  if (!url) { showToast('Sheets URL을 먼저 입력해주세요', 'error'); return; }
+  const btn = document.getElementById('btn-sync-save');
+  btn.disabled = true;
+  setSyncStatus('저장 중...');
+  try {
+    // 스타일 저장
+    await sheetsSet('style_hug', getStyle('hug'));
+    await sheetsSet('style_kn', getStyle('kn'));
+    await sheetsSet('style_ct', getStyle('ct'));
+    // 슬라이드 데이터 저장 (이미지 제외 — 용량 문제)
+    const saveData = {
+      hugSlides: hugSlides.map(s => ({ index: s.index, prompt: s.prompt })),
+      knSlides: knSlides.map(s => ({ index: s.index, narration: s.narration, imagePrompt: s.imagePrompt })),
+      ctSlides: ctSlides.map(s => ({ index: s.index, narration: s.narration, imagePrompt: s.imagePrompt })),
+      hugTitle: document.getElementById('hug-title').value,
+      knTitle: document.getElementById('kn-title').value,
+      ctTitle: document.getElementById('ct-title').value,
+      hugIdea: document.getElementById('hug-idea').value,
+      knIdea: document.getElementById('kn-idea').value,
+      ctIdea: document.getElementById('ct-idea').value,
+    };
+    await sheetsSet('work_data', JSON.stringify(saveData));
+    setSyncStatus('✓ 저장 완료');
+    showToast('구글 시트에 저장 완료 ✓', 'success');
+  } catch(e) {
+    setSyncStatus('저장 실패', false);
+    showToast('오류: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+}
+
+async function syncFromSheets() {
+  const url = getSheetsUrl();
+  if (!url) { showToast('Sheets URL을 먼저 입력해주세요', 'error'); return; }
+  const btn = document.getElementById('btn-sync-load');
+  btn.disabled = true;
+  setSyncStatus('불러오는 중...');
+  try {
+    // 스타일 불러오기
+    const styleHug = await sheetsGet('style_hug');
+    const styleKn = await sheetsGet('style_kn');
+    const styleCt = await sheetsGet('style_ct');
+    if (styleHug) { localStorage.setItem('sm_style_hug', styleHug); }
+    if (styleKn) { localStorage.setItem('sm_style_kn', styleKn); }
+    if (styleCt) { localStorage.setItem('sm_style_ct', styleCt); }
+    loadStyles();
+
+    // 작업 데이터 불러오기
+    const raw = await sheetsGet('work_data');
+    if (raw) {
+      const data = JSON.parse(raw);
+      if (data.hugTitle) document.getElementById('hug-title').value = data.hugTitle;
+      if (data.knTitle) document.getElementById('kn-title').value = data.knTitle;
+      if (data.ctTitle) document.getElementById('ct-title').value = data.ctTitle;
+      if (data.hugIdea) document.getElementById('hug-idea').value = data.hugIdea;
+      if (data.knIdea) document.getElementById('kn-idea').value = data.knIdea;
+      if (data.ctIdea) document.getElementById('ct-idea').value = data.ctIdea;
+      if (data.hugSlides?.length) {
+        hugSlides = data.hugSlides.map(s => ({ ...s, imageData: null, generating: false }));
+        renderHugSlides();
+        document.getElementById('btn-hug-imgs').disabled = false;
+      }
+      if (data.knSlides?.length) {
+        knSlides = data.knSlides.map(s => ({ ...s, imageData: null, audioUrl: null, generating: false, audioGenerating: false }));
+        renderKnSlides();
+        document.getElementById('btn-kn-imgs').disabled = false;
+        document.getElementById('btn-kn-audio').disabled = false;
+      }
+      if (data.ctSlides?.length) {
+        ctSlides = data.ctSlides.map(s => ({ ...s, imageData: null, audioUrl: null, generating: false, audioGenerating: false }));
+        renderCtSlides();
+        document.getElementById('btn-ct-imgs').disabled = false;
+      }
+    }
+    setSyncStatus('✓ 불러오기 완료');
+    showToast('구글 시트에서 불러오기 완료 ✓', 'success');
+  } catch(e) {
+    setSyncStatus('불러오기 실패', false);
+    showToast('오류: ' + e.message, 'error');
+  }
+  btn.disabled = false;
+}
   const el = document.getElementById(id);
   if (on) el.classList.add('on'); else el.classList.remove('on');
 }
