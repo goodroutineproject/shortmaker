@@ -178,6 +178,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <span style="font-size:12px;font-weight:500;">슬라이드 프롬프트</span>
         <button class="btn-ghost" id="btn-hug-dl" onclick="downloadAllHugImages()" disabled>&#11015; 전체 다운로드</button>
+        <button class="btn-ghost" onclick="downloadCsv('hug')" id="btn-hug-csv" disabled>&#128196; CSV</button>
       </div>
       <div class="slides-area" id="hug-slides">
         <div class="empty-state"><div class="empty-icon">&#10084;</div><div>감정 주제를 입력하고<br>프롬프트 생성을 눌러주세요</div></div>
@@ -239,6 +240,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <span style="font-size:12px;font-weight:500;">씬별 스크립트</span>
         <button class="btn-ghost" id="btn-kn-dl" onclick="downloadKnAll()" disabled>&#11015; 전체 다운로드</button>
+        <button class="btn-ghost" onclick="downloadCsv('kn')" id="btn-kn-csv" disabled>&#128196; CSV</button>
       </div>
       <div id="kn-slides">
         <div class="empty-state"><div class="empty-icon">&#128218;</div><div>주제를 입력하고<br>스크립트 생성을 눌러주세요</div></div>
@@ -308,6 +310,7 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;">
         <span style="font-size:12px;font-weight:500;">슬라이드 프롬프트</span>
         <button class="btn-ghost" id="btn-ct-dl" onclick="downloadCtAll()" disabled>&#11015; 전체 다운로드</button>
+        <button class="btn-ghost" onclick="downloadCsv('ct')" id="btn-ct-csv" disabled>&#128196; CSV</button>
       </div>
       <div id="ct-slides">
         <div class="empty-state"><div class="empty-icon">&#127912;</div><div>화풍과 주제를 입력하고<br>프롬프트 생성을 눌러주세요</div></div>
@@ -640,7 +643,7 @@ async function generateHugPrompts() {
     hugSlides = parsed.scenes.map(function(s) { return { index: s.index, prompt: s.prompt, desc: s.desc || "", imageData: null, generating: false }; });
     renderHugSlides();
     document.getElementById("btn-hug-imgs").disabled = false;
-    showToast("프롬프트 " + hugSlides.length + "개 생성 완료 ✓", "success");
+    document.getElementById("btn-hug-csv").disabled = false;
   } catch(e) {
     showToast("오류: " + e.message, "error");
   }
@@ -685,7 +688,7 @@ async function generateAllHugImages() {
   }
   btn.disabled = false;
   if (stopBtn) stopBtn.style.display = "none";
-  document.getElementById("btn-hug-dl").disabled = false;
+  document.getElementById("btn-hug-dl").disabled = false; document.getElementById("btn-hug-csv").disabled = false;
   setStatus("hug-status", "hug-status-text", false);
   if (!stopFlags.hug) { setProgress("hug-progress", 100); showToast("전체 이미지 생성 완료 ✓", "success"); }
 }
@@ -762,7 +765,7 @@ async function generateKnScript() {
     renderKnSlides();
     document.getElementById("btn-kn-imgs").disabled = false;
     document.getElementById("btn-kn-audio").disabled = false;
-    showToast("스크립트 " + knSlides.length + "개 씬 생성 완료 ✓", "success");
+    var kncsvBtn2 = document.getElementById("btn-kn-csv"); if(kncsvBtn2) kncsvBtn2.disabled = false;
   } catch(e) { showToast("오류: " + e.message, "error"); }
   btn.disabled = false;
   document.getElementById("kn-gen-label").textContent = "✦ 스크립트 생성";
@@ -801,7 +804,7 @@ async function generateAllKnImages() {
   }
   btn.disabled = false;
   if (stopBtn) stopBtn.style.display = "none";
-  document.getElementById("btn-kn-dl").disabled = false;
+  document.getElementById("btn-kn-dl").disabled = false; var kncsvBtn = document.getElementById("btn-kn-csv"); if(kncsvBtn) kncsvBtn.disabled = false;
   setStatus("kn-status", "kn-status-text", false);
   if (!stopFlags.kn) { setProgress("kn-progress", 100); showToast("전체 이미지 완료 ✓", "success"); }
 }
@@ -822,7 +825,7 @@ async function generateAllKnAudio() {
     knSlides[i].audioGenerating = false; renderKnSlides();
   }
   btn.disabled = false;
-  document.getElementById("btn-kn-dl").disabled = false;
+  document.getElementById("btn-kn-dl").disabled = false; var kncsvBtn = document.getElementById("btn-kn-csv"); if(kncsvBtn) kncsvBtn.disabled = false;
   showToast("전체 음성 완료 ✓", "success");
 }
 
@@ -915,7 +918,7 @@ async function generateCtPrompts() {
     renderCtSlides();
     document.getElementById("btn-ct-imgs").disabled = false;
     if (useAudio) document.getElementById("btn-ct-audio").disabled = false;
-    showToast("프롬프트 " + ctSlides.length + "개 생성 완료 ✓", "success");
+    var ctcsvBtn2 = document.getElementById("btn-ct-csv"); if(ctcsvBtn2) ctcsvBtn2.disabled = false;
   } catch(e) { showToast("오류: " + e.message, "error"); }
   btn.disabled = false;
   document.getElementById("ct-gen-label").textContent = "✦ 프롬프트 생성";
@@ -956,7 +959,7 @@ async function generateAllCtImages() {
   }
   btn.disabled = false;
   if (stopBtn) stopBtn.style.display = "none";
-  document.getElementById("btn-ct-dl").disabled = false;
+  document.getElementById("btn-ct-dl").disabled = false; var ctcsvBtn = document.getElementById("btn-ct-csv"); if(ctcsvBtn) ctcsvBtn.disabled = false;
   setStatus("ct-status", "ct-status-text", false);
   if (!stopFlags.ct) { setProgress("ct-progress", 100); showToast("전체 이미지 완료 ✓", "success"); }
 }
@@ -973,7 +976,7 @@ async function generateAllCtAudio() {
     ctSlides[i].audioGenerating = false; renderCtSlides();
   }
   btn.disabled = false;
-  document.getElementById("btn-ct-dl").disabled = false;
+  document.getElementById("btn-ct-dl").disabled = false; var ctcsvBtn = document.getElementById("btn-ct-csv"); if(ctcsvBtn) ctcsvBtn.disabled = false;
   showToast("음성 생성 완료 ✓", "success");
 }
 
@@ -1085,6 +1088,40 @@ function editTabNames() {
   var newCt = prompt('세번째 탭 이름:', ctName);
   if (newCt !== null && newCt.trim()) { document.getElementById('tab-name-ct').textContent = newCt.trim(); localStorage.setItem('sm_tabname_ct', newCt.trim()); }
   showToast('탭 이름 저장 완료 ✓', 'success');
+}
+
+function downloadCsv(tab) {
+  var rows = [["번호", "한글 설명", "영어 프롬프트"]];
+  var title = "";
+  if (tab === "hug") {
+    title = document.getElementById("hug-title").value.trim() || "episode";
+    hugSlides.forEach(function(s) {
+      rows.push([s.index, s.desc || "", s.prompt || ""]);
+    });
+  } else if (tab === "kn") {
+    title = document.getElementById("kn-title").value.trim() || "episode";
+    knSlides.forEach(function(s) {
+      rows.push([s.index, s.desc || s.narration || "", s.imagePrompt || ""]);
+    });
+  } else if (tab === "ct") {
+    title = document.getElementById("ct-title").value.trim() || "episode";
+    ctSlides.forEach(function(s) {
+      rows.push([s.index, s.desc || s.narration || "", s.imagePrompt || ""]);
+    });
+  }
+  var csv = rows.map(function(r) {
+    return r.map(function(cell) {
+      var str = String(cell).replace(/"/g, '""');
+      return '"' + str + '"';
+    }).join(",");
+  }).join("\n");
+  var bom = "\uFEFF";
+  var blob = new Blob([bom + csv], { type: "text/csv;charset=utf-8;" });
+  var a = document.createElement("a");
+  a.href = URL.createObjectURL(blob);
+  a.download = title + "_prompts.csv";
+  a.click();
+  showToast("CSV 다운로드 완료 ✓", "success");
 }
 
 // ═══ 비율 선택 ═══
