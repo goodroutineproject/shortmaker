@@ -212,15 +212,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
       </div>
       <div class="panel">
         <div class="panel-title"><div class="panel-title-left"><span class="badge badge-purple">3</span> 음성 설정 (ElevenLabs)</div></div>
-        <label class="form-label">보이스 ID</label>
-        <input class="form-input" id="kn-voice" value="21m00Tcm4TlvDq8ikWAM" />
-        <div class="voice-chips">
-          <div class="voice-chip active" onclick="setVoice('21m00Tcm4TlvDq8ikWAM',this)">Rachel</div>
-          <div class="voice-chip" onclick="setVoice('AZnzlk1XvdvUeBnXmlld',this)">Domi</div>
-          <div class="voice-chip" onclick="setVoice('EXAVITQu4vr4xnSDxMaL',this)">Bella</div>
-          <div class="voice-chip" onclick="setVoice('ErXwobaYiN019PkySvjV',this)">Antoni</div>
-          <div class="voice-chip" onclick="setVoice('TxGEqnHWrfWFTfGW9XjX',this)">Josh</div>
+        <label class="form-label">VOICE ID</label>
+        <p style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:8px;">elevenlabs.io → Voices → 원하는 목소리 클릭 → ID 복사</p>
+        <div style="display:flex;gap:6px;">
+          <input class="form-input" id="kn-voice" placeholder="Voice ID 입력..." style="margin-bottom:0;" />
+          <button class="btn-ghost" style="font-size:11px;white-space:nowrap;" onclick="saveVoiceId('kn')">저장</button>
         </div>
+        <div id="kn-voice-saved" style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:5px;"></div>
       </div>
       <div class="btn-row">
         <button class="btn-primary" id="btn-kn-gen" onclick="generateKnScript()"><span id="kn-gen-label">&#10022; 스크립트 생성</span></button>
@@ -280,8 +278,13 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
           ElevenLabs 음성 생성 포함
         </label>
         <div id="ct-audio-wrap" style="display:none;margin-top:10px;">
-          <label class="form-label">보이스 ID</label>
-          <input class="form-input" id="ct-voice" value="21m00Tcm4TlvDq8ikWAM" />
+          <label class="form-label">VOICE ID</label>
+          <p style="font-size:10px;color:var(--text3);font-family:var(--mono);margin-bottom:8px;">elevenlabs.io → Voices → ID 복사</p>
+          <div style="display:flex;gap:6px;">
+            <input class="form-input" id="ct-voice" placeholder="Voice ID 입력..." style="margin-bottom:0;" />
+            <button class="btn-ghost" style="font-size:11px;white-space:nowrap;" onclick="saveVoiceId('ct')">저장</button>
+          </div>
+          <div id="ct-voice-saved" style="font-size:10px;font-family:var(--mono);color:var(--text3);margin-top:5px;"></div>
         </div>
       </div>
       <div class="btn-row">
@@ -358,6 +361,7 @@ window.onload = function() {
   loadAllStyles();
   renderVault();
   loadTabNames();
+  loadVoiceIds();
 };
 
 function saveKeys() {
@@ -973,6 +977,28 @@ async function downloadCtAll() {
   a.download = title + ".zip";
   a.click();
   showToast(count + "개 파일 다운로드 완료 ✓", "success");
+}
+
+function loadVoiceIds() {
+  ['kn','ct'].forEach(function(tab) {
+    var saved = localStorage.getItem('sm_voice_' + tab);
+    var el = document.getElementById(tab + '-voice');
+    var savedEl = document.getElementById(tab + '-voice-saved');
+    if (saved && el) {
+      el.value = saved;
+      if (savedEl) savedEl.textContent = '저장됨: ' + saved;
+    }
+  });
+}
+
+function saveVoiceId(tab) {
+  var el = document.getElementById(tab + '-voice');
+  var val = el ? el.value.trim() : '';
+  if (!val) { showToast('Voice ID를 입력해주세요', 'error'); return; }
+  localStorage.setItem('sm_voice_' + tab, val);
+  var savedEl = document.getElementById(tab + '-voice-saved');
+  if (savedEl) savedEl.textContent = '저장됨: ' + val;
+  showToast('Voice ID 저장 완료 ✓', 'success');
 }
 
 function loadTabNames() {
