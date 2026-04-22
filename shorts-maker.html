@@ -442,11 +442,27 @@ const DEFAULT_STYLES = {
 function loadStyles() {
   ['hug','kn','ct'].forEach(tab => {
     const saved = localStorage.getItem('sm_style_' + tab);
-    const val = saved || DEFAULT_STYLES[tab];
+    const val = saved !== null ? saved : DEFAULT_STYLES[tab];
     const preview = document.getElementById(tab + '-style-preview');
-    const ta = document.getElementById(tab + '-style-ta') || document.getElementById('ct-style');
-    if (preview) preview.textContent = val || '(스타일 미설정 — 수정 버튼을 눌러 입력하세요)';
-    if (ta) ta.value = val;
+    const taId = tab === 'ct' ? 'ct-style' : tab + '-style-ta';
+    const ta = document.getElementById(taId);
+    if (preview) {
+      preview.textContent = val || '(비어있음 — 수정 버튼을 눌러 입력하세요)';
+      preview.style.display = 'block';
+    }
+    if (ta) {
+      ta.value = val;
+      ta.style.display = 'none';
+    }
+    // save-row, edit-btn 초기 상태 보장
+    const saveRow = document.getElementById(tab + '-style-save-row');
+    const editBtn = document.getElementById(tab + '-style-edit-btn');
+    if (saveRow) saveRow.style.display = 'none';
+    if (editBtn) editBtn.style.display = 'inline-flex';
+    // localStorage에 없으면 기본값 저장
+    if (saved === null && DEFAULT_STYLES[tab]) {
+      localStorage.setItem('sm_style_' + tab, DEFAULT_STYLES[tab]);
+    }
   });
 }
 
@@ -646,6 +662,8 @@ async function syncFromSheets() {
   }
   btn.disabled = false;
 }
+
+function updateDot(id, on) {
   const el = document.getElementById(id);
   if (on) el.classList.add('on'); else el.classList.remove('on');
 }
