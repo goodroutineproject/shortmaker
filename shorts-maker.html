@@ -109,10 +109,11 @@ body{background:var(--bg);color:var(--text);font-family:var(--sans);font-size:14
     </div>
   </div>
   <div class="main-tabs">
-    <button class="tab-btn active" onclick="switchTab('hug',this)">&#10084; CAN I HUG YOU</button>
-    <button class="tab-btn" onclick="switchTab('knowledge',this)">&#128218; 지식/역사 쇼츠</button>
-    <button class="tab-btn" onclick="switchTab('custom',this)">&#127912; 커스텀</button>
+    <button class="tab-btn active" onclick="switchTab('hug',this)">&#10084; <span id="tab-name-hug">CAN I HUG YOU</span></button>
+    <button class="tab-btn" onclick="switchTab('knowledge',this)">&#128218; <span id="tab-name-kn">지식/역사 쇼츠</span></button>
+    <button class="tab-btn" onclick="switchTab('custom',this)">&#127912; <span id="tab-name-ct">커스텀</span></button>
     <button class="tab-btn" onclick="switchTab('vault',this)">&#128196; 프롬프트 보관함</button>
+    <button class="btn-ghost" onclick="editTabNames()" style="font-size:10px;margin-left:4px;">✏️ 탭명 수정</button>
   </div>
   <span style="font-size:10px;font-family:var(--mono);color:var(--text3);">SHORTS STUDIO v1.1</span>
 </div>
@@ -356,6 +357,7 @@ window.onload = function() {
   if (su) { document.getElementById("sheets-url").value = su; setDot("dot-sheets", true); }
   loadAllStyles();
   renderVault();
+  loadTabNames();
 };
 
 function saveKeys() {
@@ -973,6 +975,27 @@ async function downloadCtAll() {
   showToast(count + "개 파일 다운로드 완료 ✓", "success");
 }
 
+function loadTabNames() {
+  var tabs = ['hug','kn','ct'];
+  tabs.forEach(function(t) {
+    var saved = localStorage.getItem('sm_tabname_' + t);
+    if (saved) { var el = document.getElementById('tab-name-' + t); if (el) el.textContent = saved; }
+  });
+}
+
+function editTabNames() {
+  var hugName = document.getElementById('tab-name-hug').textContent;
+  var knName = document.getElementById('tab-name-kn').textContent;
+  var ctName = document.getElementById('tab-name-ct').textContent;
+  var newHug = prompt('첫번째 탭 이름:', hugName);
+  if (newHug !== null && newHug.trim()) { document.getElementById('tab-name-hug').textContent = newHug.trim(); localStorage.setItem('sm_tabname_hug', newHug.trim()); }
+  var newKn = prompt('두번째 탭 이름:', knName);
+  if (newKn !== null && newKn.trim()) { document.getElementById('tab-name-kn').textContent = newKn.trim(); localStorage.setItem('sm_tabname_kn', newKn.trim()); }
+  var newCt = prompt('세번째 탭 이름:', ctName);
+  if (newCt !== null && newCt.trim()) { document.getElementById('tab-name-ct').textContent = newCt.trim(); localStorage.setItem('sm_tabname_ct', newCt.trim()); }
+  showToast('탭 이름 저장 완료 ✓', 'success');
+}
+
 // ═══ 비율 선택 ═══
 function getRatio(tab) {
   var radios = document.querySelectorAll("input[name='" + tab + "-ratio']");
@@ -1016,8 +1039,11 @@ function deleteVaultItem(id) {
   renderVault();
   showToast("삭제됐어요", "info");
 }
-function copyVaultItem(content) {
-  navigator.clipboard.writeText(content).then(function() {
+function copyVaultItem(id) {
+  var items = getVault();
+  var item = items.find(function(it) { return it.id === id; });
+  if (!item) return;
+  navigator.clipboard.writeText(item.content).then(function() {
     showToast("복사됐어요 ✓", "success");
   }).catch(function() {
     showToast("복사 실패", "error");
@@ -1032,7 +1058,8 @@ function renderVault() {
     return;
   }
   container.innerHTML = items.map(function(item) {
-    return '<div class="vault-item"><div class="vault-item-title"><span>' + item.title + '</span><div style="display:flex;gap:6px;"><button class="btn-ghost" style="font-size:10px;" onclick="copyVaultItem(' + JSON.stringify(item.content) + ')">&#128203; 복사</button><button class="btn-ghost" style="font-size:10px;color:var(--coral);border-color:rgba(255,123,114,.3);" onclick="deleteVaultItem(' + item.id + ')">삭제</button></div></div><div class="vault-item-content">' + item.content.substring(0, 200) + (item.content.length > 200 ? "..." : "") + "</div></div>";
+    var preview = item.content.substring(0, 200) + (item.content.length > 200 ? "..." : "");
+    return '<div class="vault-item"><div class="vault-item-title"><span>' + item.title + '</span><div style="display:flex;gap:6px;"><button class="btn-ghost" style="font-size:10px;" onclick="copyVaultItem(' + item.id + ')">&#128203; 복사</button><button class="btn-ghost" style="font-size:10px;color:var(--coral);border-color:rgba(255,123,114,.3);" onclick="deleteVaultItem(' + item.id + ')">삭제</button></div></div><div class="vault-item-content">' + preview + "</div></div>";
   }).join("");
 }
 </script>
